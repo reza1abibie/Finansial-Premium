@@ -1,999 +1,877 @@
-```react
-import React, { useState, useEffect, useMemo } from 'react';
-import { initializeApp } from 'firebase/app';
-import { 
-  getFirestore, 
-  collection, 
-  doc, 
-  onSnapshot, 
-  addDoc, 
-  deleteDoc, 
-  query
-} from 'firebase/firestore';
-import { 
-  getAuth, 
-  signInWithCustomToken, 
-  signInAnonymously, 
-  onAuthStateChanged 
-} from 'firebase/auth';
+```html
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Mourn Finance - Premium Vault</title>
+  
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  
+  <!-- Firebase SDK -->
+  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
 
-// --- INISIALISASI FIREBASE ---
-const firebaseConfig = JSON.parse(__firebase_config);
-const app = initializeApp(firebaseConfig);
-const auth = getAuth(app);
-const db = getFirestore(app);
-const appId = typeof __app_id !== 'undefined' ? __app_id : 'keuangan-premium-cyber';
+  <style>
+    /* Premium Smooth Transition & Background */
+    body {
+      background-color: #09090b;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .custom-scroll::-webkit-scrollbar {
+      width: 4px;
+    }
+    .custom-scroll::-webkit-scrollbar-thumb {
+      background: #27272a;
+      border-radius: 999px;
+    }
+    input, select {
+      outline: none;
+    }
+  </style>
+</head>
+<body class="text-[#fafafa] min-h-screen pb-32 relative select-none antialiased overflow-x-hidden">
 
-// Daftar Kategori Elegan dengan Ikon SVG Kustom & Warna Mewah
-const KATEGORI_PENGELUARAN = [
-  { 
-    id: 'makanan', 
-    nama: 'Kuliner & Dining', 
-    warna: '#F87171', 
-    path: "M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"
-  },
-  { 
-    id: 'transportasi', 
-    nama: 'Mobilitas & Travel', 
-    warna: '#60A5FA', 
-    path: "M5 10l7-7m0 0l7 7m-7-7v18" 
-  },
-  { 
-    id: 'belanja', 
-    nama: 'Gaya Hidup & Belanja', 
-    warna: '#FBBF24', 
-    path: "M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" 
-  },
-  { 
-    id: 'tagihan', 
-    nama: 'Utilitas & Layanan', 
-    warna: '#34D399', 
-    path: "M13 2L3 14h9l-1 8 10-12h-9l1-8z" 
-  },
-  { 
-    id: 'hiburan', 
-    nama: 'Rekreasi & Media', 
-    warna: '#A78BFA', 
-    path: "M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" 
-  },
-  { 
-    id: 'kesehatan', 
-    nama: 'Kesehatan & Wellness', 
-    warna: '#F472B6', 
-    path: "M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" 
-  },
-  { 
-    id: 'lainnya_out', 
-    nama: 'Lain-lain', 
-    warna: '#9CA3AF', 
-    path: "M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" 
-  }
-];
+  <!-- GLOW DECORATIONS -->
+  <div class="fixed top-0 left-1/2 -translate-x-1/2 w-full max-w-lg h-[400px] bg-gradient-to-b from-purple-900/10 via-transparent to-transparent pointer-events-none z-0 blur-3xl"></div>
 
-const KATEGORI_PEMASUKAN = [
-  { 
-    id: 'gaji', 
-    nama: 'Gaji Pokok', 
-    warna: '#34D399', 
-    path: "M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" 
-  },
-  { 
-    id: 'investasi', 
-    nama: 'Imbal Hasil Investasi', 
-    warna: '#10B981', 
-    path: "M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" 
-  },
-  { 
-    id: 'bisnis', 
-    nama: 'Pendapatan Bisnis', 
-    warna: '#C084FC', 
-    path: "M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m4 6h.01M5 20h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" 
-  },
-  { 
-    id: 'projek', 
-    nama: 'Freelance & Projek', 
-    warna: '#60A5FA', 
-    path: "M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" 
-  }
-];
-
-export default function App() {
-  // --- STATE UTAMA ---
-  const [user, setUser] = useState(null);
-  const [customUserId, setCustomUserId] = useState('');
-  const [targetSyncId, setTargetSyncId] = useState('');
-  const [transaksi, setTransaksi] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [synced, setSynced] = useState(false);
-
-  // Navigasi Tab Utama (Beranda, Statistik, Utilitas)
-  const [tabAktif, setTabAktif] = useState('beranda');
-
-  // Filter & Pencarian
-  const [tipeFilter, setTipeFilter] = useState('Semua'); 
-  const [kataKunci, setKataKunci] = useState('');
-  const [filterBulan, setFilterBulan] = useState(new Date().toISOString().substring(0, 7));
-
-  // Modals
-  const [showModalTambah, setShowModalTambah] = useState(false);
-  const [konfirmasiHapus, setKonfirmasiHapus] = useState(null);
-
-  // Form State
-  const [tipeForm, setTipeForm] = useState('pengeluaran'); 
-  const [jumlah, setJumlah] = useState('');
-  const [kategori, setKategori] = useState('makanan');
-  const [tanggal, setTanggal] = useState(new Date().toISOString().split('T')[0]);
-  const [waktu, setWaktu] = useState(new Date().toTimeString().substring(0, 5));
-  const [keterangan, setKeterangan] = useState('');
-
-  // Toast Notifications
-  const [toast, setToast] = useState(null);
-
-  // --- AUTENTIKASI ---
-  useEffect(() => {
-    const initAuth = async () => {
-      try {
-        if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
-          await signInWithCustomToken(auth, __initial_auth_token);
-        } else {
-          await signInAnonymously(auth);
-        }
-      } catch (err) {
-        console.error("Autentikasi Firebase Gagal:", err);
-      }
-    };
-    initAuth();
-
-    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
-      setUser(currentUser);
-      if (currentUser) {
-        const savedCustomId = localStorage.getItem('keuangan_custom_uid');
-        if (savedCustomId) {
-          setCustomUserId(savedCustomId);
-        } else {
-          setCustomUserId(currentUser.uid);
-        }
-        setLoading(false);
-      }
-    });
-    return () => unsubscribe();
-  }, []);
-
-  // --- FIREBASE REAL-TIME SYNC ---
-  useEffect(() => {
-    if (!user) return;
-    setSynced(false);
-
-    const activeUserId = customUserId || user.uid;
-
-    // Path Sesuai Aturan 1: /artifacts/{appId}/users/{userId}/{collectionName}
-    const colRef = collection(db, 'artifacts', appId, 'users', activeUserId, 'transaksi');
+  <!-- CONTAINER UTAMA -->
+  <div class="relative z-10 max-w-lg mx-auto px-6">
     
-    // Ambil data tanpa query kompleks (Aturan 2)
-    const unsubscribe = onSnapshot(
-      colRef,
-      (snapshot) => {
-        const listData = [];
-        snapshot.forEach((doc) => {
-          listData.push({ id: doc.id, ...doc.data() });
-        });
+    <!-- HEADER -->
+    <header class="pt-8 pb-4 flex justify-between items-center">
+      <div class="flex items-center gap-3">
+        <div class="w-10 h-10 rounded-full bg-gradient-to-tr from-purple-600 to-indigo-600 flex items-center justify-center font-bold text-sm tracking-widest text-white shadow-lg shadow-purple-900/30">
+          FN
+        </div>
+        <div>
+          <h1 class="text-sm font-bold tracking-tight text-zinc-100 flex items-center gap-1.5">
+            Mourn Finance
+            <span id="sync-dot" class="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse"></span>
+          </h1>
+          <p class="text-[10px] text-zinc-500 font-medium tracking-wide uppercase">Vault Premium</p>
+        </div>
+      </div>
+
+      <!-- Indikator Status Cloud -->
+      <div>
+        <div class="bg-[#18181b]/80 backdrop-blur-md border border-zinc-800 rounded-full px-3 py-1 flex items-center gap-1.5 text-[10px] font-semibold text-zinc-400">
+          <svg class="w-3.5 h-3.5 text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M3 15a4 4 0 004 4h9a5 5 0 10-.1-9.999 5.002 5.002 0 10-9.78 2.096A4.001 4.001 0 003 15z" />
+          </svg>
+          <span id="sync-status">Menghubungkan</span>
+        </div>
+      </div>
+    </header>
+
+    <!-- TOAST NOTIFICATION -->
+    <div id="toast" class="fixed top-6 left-1/2 -translate-x-1/2 z-50 w-[90%] max-w-xs p-3 rounded-2xl border bg-[#0f0f13]/95 backdrop-blur-md border-zinc-800 shadow-2xl flex items-center gap-2.5 transition-all duration-300 transform -translate-y-20 opacity-0 pointer-events-none">
+      <div id="toast-indicator" class="w-2 h-2 rounded-full bg-purple-500"></div>
+      <span id="toast-text" class="text-[11px] font-bold text-zinc-200">Notifikasi</span>
+    </div>
+
+    <!-- TAB-CONTAINER: BERANDA -->
+    <div id="tab-beranda" class="space-y-6">
+      <!-- HERO BALANCE CARD -->
+      <div class="bg-gradient-to-b from-[#18181b] to-[#0f0f11] rounded-[28px] p-6 border border-zinc-800/80 shadow-2xl relative overflow-hidden group">
+        <div class="absolute -right-16 -top-16 w-36 h-36 bg-purple-600/10 rounded-full blur-2xl"></div>
         
-        // Urutkan berdasarkan waktu di memory (Aturan 2)
-        listData.sort((a, b) => {
-          const tA = new Date(`${a.tanggal}T${a.waktu || '00:00'}`);
-          const tB = new Date(`${b.tanggal}T${b.waktu || '00:00'}`);
-          return tB - tA;
-        });
+        <div class="flex justify-between items-start">
+          <div>
+            <span class="text-[10px] text-zinc-500 font-bold tracking-wider uppercase">Saldo Terkonsolidasi</span>
+            <h2 id="total-saldo" class="text-3xl font-extrabold text-white tracking-tight mt-1.5">Rp0</h2>
+          </div>
+          
+          <svg class="w-16 h-8 text-purple-400" viewBox="0 0 100 100" fill="none">
+            <path d="M0,80 C20,40 40,65 60,35 80,75 100,20" stroke="currentColor" stroke-width="8" stroke-linecap="round"/>
+          </svg>
+        </div>
 
-        setTransaksi(listData);
-        setSynced(true);
-        setLoading(false);
-      },
-      (error) => {
-        console.error("Gagal sinkronisasi data:", error);
-        setLoading(false);
-      }
-    );
-
-    return () => unsubscribe();
-  }, [user, customUserId]);
-
-  useEffect(() => {
-    if (tipeForm === 'pengeluaran') {
-      setKategori(KATEGORI_PENGELUARAN[0].id);
-    } else {
-      setKategori(KATEGORI_PEMASUKAN[0].id);
-    }
-  }, [tipeForm]);
-
-  const tunjukkanToast = (msg, tipe = 'sukses') => {
-    setToast({ msg, tipe });
-    setTimeout(() => setToast(null), 3000);
-  };
-
-  // --- AKSI DATABASE ---
-  const simpanTransaksi = async (e) => {
-    e.preventDefault();
-    if (!jumlah || parseFloat(jumlah) <= 0) {
-      tunjukkanToast("Nominal harus di atas 0", "error");
-      return;
-    }
-    if (!user) return;
-
-    const activeUserId = customUserId || user.uid;
-
-    const payload = {
-      tipe: tipeForm,
-      jumlah: parseFloat(jumlah),
-      kategori,
-      tanggal,
-      waktu,
-      keterangan: keterangan.trim() || 'Transaksi Umum',
-      createdAt: new Date().toISOString()
-    };
-
-    try {
-      const colRef = collection(db, 'artifacts', appId, 'users', activeUserId, 'transaksi');
-      await addDoc(colRef, payload);
-      
-      setJumlah('');
-      setKeterangan('');
-      setWaktu(new Date().toTimeString().substring(0, 5));
-      setShowModalTambah(false);
-      tunjukkanToast("Transaksi berhasil dicatat ke cloud!");
-    } catch (err) {
-      console.error(err);
-      tunjukkanToast("Gagal menyimpan transaksi.", "error");
-    }
-  };
-
-  const eksekusiHapus = async () => {
-    if (!user || !konfirmasiHapus) return;
-    const activeUserId = customUserId || user.uid;
-
-    try {
-      const docRef = doc(db, 'artifacts', appId, 'users', activeUserId, 'transaksi', konfirmasiHapus);
-      await deleteDoc(docRef);
-      setKonfirmasiHapus(null);
-      tunjukkanToast("Catatan berhasil dihapus.");
-    } catch (err) {
-      tunjukkanToast("Gagal menghapus catatan.", "error");
-    }
-  };
-
-  const hubungkanKoneksiBaru = (e) => {
-    e.preventDefault();
-    if (!targetSyncId.trim()) {
-      tunjukkanToast("Silakan masukkan ID tujuan valid", "error");
-      return;
-    }
-    
-    localStorage.setItem('keuangan_custom_uid', targetSyncId.trim());
-    setCustomUserId(targetSyncId.trim());
-    tunjukkanToast("Koneksi tersambung! Data disinkronkan.");
-  };
-
-  const setelUlangKoneksi = () => {
-    if (!user) return;
-    localStorage.removeItem('keuangan_custom_uid');
-    setCustomUserId(user.uid);
-    setTargetSyncId('');
-    tunjukkanToast("Kembali menggunakan ID default Anda.");
-  };
-
-  // --- PERHITUNGAN DATA DI MEMORI ---
-  const daftarBulan = useMemo(() => {
-    const setBulan = new Set();
-    const blnSekarang = new Date().toISOString().substring(0, 7);
-    setBulan.add(blnSekarang);
-    transaksi.forEach(t => {
-      if (t.tanggal) setBulan.add(t.tanggal.substring(0, 7));
-    });
-    return Array.from(setBulan).sort((a, b) => b.localeCompare(a));
-  }, [transaksi]);
-
-  const transaksiSesuaiFilter = useMemo(() => {
-    return transaksi.filter(t => {
-      const cocokBulan = t.tanggal && t.tanggal.startsWith(filterBulan);
-      
-      let cocokTipe = true;
-      if (tipeFilter === 'Pemasukan') cocokTipe = t.tipe === 'pemasukan';
-      if (tipeFilter === 'Pengeluaran') cocokTipe = t.tipe === 'pengeluaran';
-
-      let cocokKataKunci = true;
-      if (kataKunci.trim() !== '') {
-        const cari = kataKunci.toLowerCase();
-        const infoKat = dapatkanInfoKategori(t.kategori, t.tipe);
-        cocokKataKunci = 
-          (t.keterangan && t.keterangan.toLowerCase().includes(cari)) ||
-          (infoKat.nama && infoKat.nama.toLowerCase().includes(cari));
-      }
-
-      return cocokBulan && cocokTipe && cocokKataKunci;
-    });
-  }, [transaksi, filterBulan, tipeFilter, kataKunci]);
-
-  const totalSaldokumulatif = useMemo(() => {
-    return transaksi.reduce((sum, t) => {
-      return t.tipe === 'pemasukan' ? sum + t.jumlah : sum - t.jumlah;
-    }, 0);
-  }, [transaksi]);
-
-  const ringkasanBulanan = useMemo(() => {
-    let masuk = 0;
-    let keluar = 0;
-    transaksiSesuaiFilter.forEach(t => {
-      if (t.tipe === 'pemasukan') masuk += t.jumlah;
-      else keluar += t.jumlah;
-    });
-    return { masuk, keluar, saldoBulanIni: masuk - keluar };
-  }, [transaksiSesuaiFilter]);
-
-  // Data Distribusi Kategori Pengeluaran Bulan Ini
-  const chartPengeluaran = useMemo(() => {
-    const mapKategori = {};
-    let totalKeluar = 0;
-
-    KATEGORI_PENGELUARAN.forEach(k => {
-      mapKategori[k.id] = { ...k, jumlah: 0 };
-    });
-
-    transaksiSesuaiFilter.forEach(t => {
-      if (t.tipe === 'pengeluaran') {
-        totalKeluar += t.jumlah;
-        if (mapKategori[t.kategori]) {
-          mapKategori[t.kategori].jumlah += t.jumlah;
-        } else {
-          if (!mapKategori['lainnya_out']) {
-            mapKategori['lainnya_out'] = { id: 'lainnya_out', nama: 'Lainnya', warna: '#9CA3AF', path: "M20 7l-8-4-8 4", jumlah: 0 };
-          }
-          mapKategori['lainnya_out'].jumlah += t.jumlah;
-        }
-      }
-    });
-
-    const kategoriTerpakai = Object.values(mapKategori)
-      .filter(k => k.jumlah > 0)
-      .sort((a, b) => b.jumlah - a.jumlah);
-
-    let sudutAkumulasi = 0;
-    const slices = kategoriTerpakai.map(k => {
-      const persen = totalKeluar > 0 ? (k.jumlah / totalKeluar) * 100 : 0;
-      const sudut = (persen / 100) * 360;
-      const startAngle = sudutAkumulasi;
-      sudutAkumulasi += sudut;
-      return { ...k, persen, startAngle, endAngle: sudutAkumulasi };
-    });
-
-    return { slices, total: totalKeluar };
-  }, [transaksiSesuaiFilter]);
-
-  // Tren Mingguan (Data untuk area chart visual)
-  const trenDataSVG = useMemo(() => {
-    const titik = [40, 65, 35, 80, 55, 95, 75];
-    if (transaksiSesuaiFilter.length > 0) {
-      const nilaiHarian = Array(7).fill(0);
-      transaksiSesuaiFilter.slice(0, 10).forEach((t, i) => {
-        nilaiHarian[i % 7] += t.jumlah;
-      });
-      const maxVal = Math.max(...nilaiHarian) || 1;
-      return nilaiHarian.map(v => 100 - ((v / maxVal) * 60 + 20));
-    }
-    return titik;
-  }, [transaksiSesuaiFilter]);
-
-  // --- UTILS FORMAT ---
-  const formatIDR = (nilai) => {
-    return new Intl.NumberFormat('id-ID', {
-      style: 'currency',
-      currency: 'IDR',
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 0
-    }).format(nilai).replace(/\s/g, '');
-  };
-
-  const formatTanggalLengkap = (tglStr) => {
-    if (!tglStr) return '';
-    const dateObj = new Date(tglStr);
-    return dateObj.toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' });
-  };
-
-  const dapatkanInfoKategori = (idKategori, tipe) => {
-    const list = tipe === 'pemasukan' ? KATEGORI_PEMASUKAN : KATEGORI_PENGELUARAN;
-    return list.find(k => k.id === idKategori) || { nama: 'Lainnya', warna: '#9CA3AF', path: "M20 7l-8-4-8 4" };
-  };
-
-  const hitungArcSVG = (x, y, radius, startAngle, endAngle) => {
-    const polarKeKartesius = (cx, cy, r, angleInDegrees) => {
-      const angleInRadians = ((angleInDegrees - 90) * Math.PI) / 180.0;
-      return {
-        x: cx + r * Math.cos(angleInRadians),
-        y: cy + r * Math.sin(angleInRadians)
-      };
-    };
-
-    const start = polarKeKartesius(x, y, radius, endAngle);
-    const end = polarKeKartesius(x, y, radius, startAngle);
-    const largeArcFlag = endAngle - startAngle <= 180 ? "0" : "1";
-
-    return [
-      "M", x, y,
-      "L", start.x, start.y,
-      "A", radius, radius, 0, largeArcFlag, 0, end.x, end.y,
-      "Z"
-    ].join(" ");
-  };
-
-  const salinUID = () => {
-    const textToCopy = customUserId || user?.uid;
-    if (textToCopy) {
-      const dummyInput = document.createElement('input');
-      dummyInput.value = textToCopy;
-      document.body.appendChild(dummyInput);
-      dummyInput.select();
-      document.execCommand('copy');
-      document.body.removeChild(dummyInput);
-      tunjukkanToast("ID Sinkronisasi disalin ke papan klip!");
-    }
-  };
-
-  return (
-    <div className="min-h-screen bg-[#09090b] text-[#fafafa] font-sans pb-32 selection:bg-purple-500/30 selection:text-white">
-      
-      {/* GLOW DECORATIONS */}
-      <div className="fixed top-0 left-1/2 -translate-x-1/2 w-full max-w-lg h-[400px] bg-gradient-to-b from-purple-900/10 via-transparent to-transparent pointer-events-none z-0 blur-3xl"></div>
-
-      {/* HEADER UTAMA: ULTRA CLEAN & MINIMALIST */}
-      <header className="relative z-10 max-w-lg mx-auto px-6 pt-8 pb-4 flex justify-between items-center">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-purple-600 to-indigo-600 flex items-center justify-center font-bold text-sm tracking-widest text-white shadow-lg shadow-purple-900/30">
-            FN
+        <!-- Sub-Balans -->
+        <div class="grid grid-cols-2 gap-4 mt-8 pt-6 border-t border-zinc-800/60">
+          <div>
+            <div class="flex items-center gap-1.5 text-[10px] text-zinc-500 font-bold uppercase tracking-wider">
+              <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+              Arus Masuk
+            </div>
+            <p id="saldo-masuk" class="text-base font-black text-zinc-100 mt-1">Rp0</p>
           </div>
           <div>
-            <h1 className="text-sm font-bold tracking-tight text-zinc-100 flex items-center gap-1.5">
-              Mourn Finance
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
-            </h1>
-            <p className="text-[10px] text-zinc-500 font-medium tracking-wide uppercase">Vault Premium</p>
+            <div class="flex items-center gap-1.5 text-[10px] text-zinc-500 font-bold uppercase tracking-wider">
+              <span class="w-1.5 h-1.5 rounded-full bg-rose-500"></span>
+              Arus Keluar
+            </div>
+            <p id="saldo-keluar" class="text-base font-black text-zinc-100 mt-1">Rp0</p>
           </div>
         </div>
+      </div>
 
-        {/* Indikator Status Cloud */}
-        <div className="flex items-center gap-2">
-          <div className="bg-[#18181b]/80 backdrop-blur-md border border-zinc-800 rounded-full px-3 py-1 flex items-center gap-1.5 text-[10px] font-semibold text-zinc-400">
-            <svg className={`w-3.5 h-3.5 ${synced ? 'text-emerald-400' : 'text-amber-500 animate-spin'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M3 15a4 4 0 004 4h9a5 5 0 10-.1-9.999 5.002 5.002 0 10-9.78 2.096A4.001 4.001 0 003 15z" />
+      <!-- SEARCH & MONTH SELECTOR -->
+      <div class="flex gap-2.5">
+        <div class="relative flex-1">
+          <span class="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-500">
+            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
             </svg>
-            <span>{synced ? 'Aktif' : 'Menghubungkan'}</span>
-          </div>
+          </span>
+          <input
+            type="text"
+            id="input-cari"
+            placeholder="Cari transaksi..."
+            class="w-full bg-[#141417] border border-zinc-800/80 rounded-2xl pl-11 pr-4 py-3 text-xs text-white placeholder-zinc-500 transition-colors"
+          />
         </div>
-      </header>
 
-      {/* TOAST SYSTEM */}
-      {toast && (
-        <div className="fixed top-6 left-1/2 -translate-x-1/2 z-50 w-[90%] max-w-xs p-3 rounded-2xl border bg-[#0f0f13]/95 backdrop-blur-md border-zinc-800 shadow-2xl flex items-center gap-2.5 transition-all duration-300 animate-in fade-in slide-in-from-top-3">
-          <div className={`w-2 h-2 rounded-full ${toast.tipe === 'error' ? 'bg-red-500' : 'bg-purple-500'}`}></div>
-          <span className="text-[11px] font-bold text-zinc-200">{toast.msg}</span>
+        <div class="relative bg-[#141417] border border-zinc-800/80 rounded-2xl px-3 flex items-center">
+          <select id="select-bulan" class="bg-transparent text-zinc-300 text-xs font-semibold pr-1 appearance-none cursor-pointer">
+            <!-- Opsi Bulan diisi via JavaScript -->
+          </select>
+          <span class="text-zinc-500 text-[9px] pointer-events-none">▼</span>
         </div>
-      )}
+      </div>
 
-      {/* MAIN LAYOUT */}
-      <main className="relative z-10 max-w-lg mx-auto px-6 space-y-6">
+      <!-- TAB FILTER TIPE -->
+      <div class="flex bg-[#141417]/60 border border-zinc-800/40 p-1 rounded-2xl">
+        <button onclick="gantiFilterTipe('Semua')" id="btn-filter-semua" class="flex-1 py-2 text-xs font-bold rounded-xl transition-all bg-zinc-800 text-white shadow-xs">Semua</button>
+        <button onclick="gantiFilterTipe('Pemasukan')" id="btn-filter-pemasukan" class="flex-1 py-2 text-xs font-bold rounded-xl transition-all text-zinc-500 hover:text-zinc-300">Pemasukan</button>
+        <button onclick="gantiFilterTipe('Pengeluaran')" id="btn-filter-pengeluaran" class="flex-1 py-2 text-xs font-bold rounded-xl transition-all text-zinc-500 hover:text-zinc-300">Pengeluaran</button>
+      </div>
 
-        {/* TAB 1: BERANDA */}
-        {tabAktif === 'beranda' && (
-          <>
-            {/* HERO BALANCES */}
-            <div className="bg-gradient-to-b from-[#18181b] to-[#0f0f11] rounded-[28px] p-6 border border-zinc-800/80 shadow-2xl relative overflow-hidden group">
-              <div className="absolute -right-16 -top-16 w-36 h-36 bg-purple-600/10 rounded-full blur-2xl group-hover:bg-purple-600/15 transition-all"></div>
-              
-              <div className="flex justify-between items-start">
-                <div>
-                  <span className="text-[10px] text-zinc-500 font-bold tracking-wider uppercase">Saldo Terkonsolidasi</span>
-                  <h2 className="text-3xl font-extrabold text-white tracking-tight mt-1.5">
-                    {formatIDR(totalSaldokumulatif)}
-                  </h2>
-                </div>
-                
-                <svg className="w-16 h-8 text-purple-400" viewBox="0 0 100 100" fill="none">
-                  <path 
-                    d={`M0,${trenDataSVG[0]} C20,${trenDataSVG[1]} 40,${trenDataSVG[2]} 60,${trenDataSVG[3]} 80,${trenDataSVG[4]} 100,${trenDataSVG[5]}`} 
-                    stroke="currentColor" 
-                    strokeWidth="8" 
-                    strokeLinecap="round"
-                  />
-                </svg>
-              </div>
-
-              {/* Sub-Balans Aliran Arus Kas */}
-              <div className="grid grid-cols-2 gap-4 mt-8 pt-6 border-t border-zinc-800/60">
-                <div>
-                  <div className="flex items-center gap-1.5 text-[10px] text-zinc-500 font-bold uppercase tracking-wider">
-                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
-                    Arus Masuk ({filterBulan})
-                  </div>
-                  <p className="text-base font-black text-zinc-100 mt-1">{formatIDR(ringkasanBulanan.masuk)}</p>
-                </div>
-                <div>
-                  <div className="flex items-center gap-1.5 text-[10px] text-zinc-500 font-bold uppercase tracking-wider">
-                    <span className="w-1.5 h-1.5 rounded-full bg-rose-500"></span>
-                    Arus Keluar ({filterBulan})
-                  </div>
-                  <p className="text-base font-black text-zinc-100 mt-1">{formatIDR(ringkasanBulanan.keluar)}</p>
-                </div>
-              </div>
-            </div>
-
-            {/* SEARCH & PERIOD SELECTOR */}
-            <div className="flex gap-2.5">
-              <div className="relative flex-1">
-                <span className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-500">
-                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                  </svg>
-                </span>
-                <input
-                  type="text"
-                  placeholder="Cari transaksi..."
-                  value={kataKunci}
-                  onChange={(e) => setKataKunci(e.target.value)}
-                  className="w-full bg-[#141417] border border-zinc-800/80 rounded-2xl pl-11 pr-4 py-3 text-xs text-white placeholder-zinc-500 focus:outline-none focus:border-purple-600 transition-colors"
-                />
-              </div>
-
-              <div className="relative bg-[#141417] border border-zinc-800/80 rounded-2xl px-3 flex items-center">
-                <select
-                  value={filterBulan}
-                  onChange={(e) => setFilterBulan(e.target.value)}
-                  className="bg-transparent text-zinc-300 text-xs font-semibold focus:outline-none pr-1 appearance-none cursor-pointer"
-                >
-                  {daftarBulan.map(b => (
-                    <option key={b} value={b} className="bg-[#141417] text-white">{b}</option>
-                  ))}
-                </select>
-                <span className="text-zinc-500 text-[9px] pointer-events-none">▼</span>
-              </div>
-            </div>
-
-            {/* PIL FILTER TIPE */}
-            <div className="flex bg-[#141417]/60 border border-zinc-800/40 p-1 rounded-2xl">
-              {['Semua', 'Pemasukan', 'Pengeluaran'].map((tipe) => (
-                <button
-                  key={tipe}
-                  onClick={() => setTipeFilter(tipe)}
-                  className={`flex-1 py-2 text-xs font-bold rounded-xl transition-all ${
-                    tipeFilter === tipe 
-                      ? 'bg-zinc-800 text-white shadow-xs' 
-                      : 'text-zinc-500 hover:text-zinc-300'
-                  }`}
-                >
-                  {tipe}
-                </button>
-              ))}
-            </div>
-
-            {/* DAFTAR TRANSAKSI */}
-            <div className="space-y-3">
-              <span className="text-[10px] text-zinc-500 font-bold uppercase tracking-wider block">Arus Transaksi Terkini</span>
-              {transaksiSesuaiFilter.length === 0 ? (
-                <div className="bg-[#141417]/30 border border-dashed border-zinc-800/60 rounded-[24px] py-16 text-center text-zinc-500 text-xs">
-                  Tidak ada catatan transaksi ditemukan.
-                </div>
-              ) : (
-                <div className="space-y-2.5">
-                  {transaksiSesuaiFilter.map((item) => {
-                    const infoKat = dapatkanInfoKategori(item.kategori, item.tipe);
-                    const isOut = item.tipe === 'pengeluaran';
-
-                    return (
-                      <div 
-                        key={item.id} 
-                        className="bg-[#141417]/80 hover:bg-[#1a1a20] border border-zinc-800/40 hover:border-zinc-800 rounded-2xl p-4 flex items-center justify-between transition-all duration-200 group"
-                      >
-                        <div className="flex items-center gap-3.5 min-w-0">
-                          <div 
-                            className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 border"
-                            style={{ 
-                              backgroundColor: `${infoKat.warna}10`, 
-                              borderColor: `${infoKat.warna}30`,
-                              color: infoKat.warna 
-                            }}
-                          >
-                            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d={infoKat.path} />
-                            </svg>
-                          </div>
-
-                          <div className="min-w-0">
-                            <h4 className="font-bold text-zinc-100 text-xs truncate tracking-wide">
-                              {item.keterangan}
-                            </h4>
-                            <div className="flex items-center gap-2 mt-1">
-                              <span className="text-[9px] bg-zinc-800 text-zinc-400 px-1.5 py-0.5 rounded-md font-medium">
-                                {infoKat.nama}
-                              </span>
-                              <span className="text-[9px] text-zinc-500 font-semibold uppercase tracking-wider">
-                                {formatTanggalLengkap(item.tanggal)}
-                              </span>
-                            </div>
-                          </div>
-                        </div>
-
-                        <div className="flex items-center gap-3 flex-shrink-0">
-                          <span className={`font-extrabold text-xs tracking-tight ${isOut ? 'text-rose-400' : 'text-emerald-400'}`}>
-                            {isOut ? '-' : '+'} {formatIDR(item.jumlah)}
-                          </span>
-
-                          <button
-                            onClick={() => setKonfirmasiHapus(item.id)}
-                            className="p-1.5 rounded-lg bg-zinc-900/50 text-zinc-600 hover:text-rose-400 hover:bg-rose-950/20 opacity-0 group-hover:opacity-100 transition-opacity"
-                          >
-                            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                            </svg>
-                          </button>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
-          </>
-        )}
-
-        {/* TAB 2: GRAFIK & ANALISIS */}
-        {tabAktif === 'statistik' && (
-          <div className="space-y-6 animate-in fade-in duration-200">
-            <div className="bg-gradient-to-b from-[#18181b] to-[#0f0f11] rounded-[28px] p-6 border border-zinc-800/80 shadow-xl">
-              <h3 className="text-xs text-zinc-400 font-bold tracking-widest uppercase mb-6">Porsi Distribusi Dana</h3>
-
-              {chartPengeluaran.slices.length === 0 ? (
-                <div className="py-12 text-center text-zinc-500 text-xs">
-                  Belum ada grafik tersedia untuk bulan ini.
-                </div>
-              ) : (
-                <div className="space-y-6">
-                  <div className="flex justify-center relative py-2">
-                    <svg width="150" height="150" viewBox="0 0 120 120" className="transform -rotate-90">
-                      <circle cx="60" cy="60" r="50" fill="#09090b" />
-                      {chartPengeluaran.slices.map((slice, idx) => {
-                        if (slice.persen >= 99.9) {
-                          return <circle key={idx} cx="60" cy="60" r="44" fill="none" stroke={slice.warna} strokeWidth="12" />;
-                        }
-                        const d = hitungArcSVG(60, 60, 44, slice.startAngle, slice.endAngle);
-                        return <path key={idx} d={d} fill="none" stroke={slice.warna} strokeWidth="12" />;
-                      })}
-                      <circle cx="60" cy="60" r="32" fill="#0f0f11" />
-                    </svg>
-                    
-                    <div className="absolute inset-0 flex flex-col items-center justify-center">
-                      <span className="text-[8px] text-zinc-500 uppercase font-black">Keluar</span>
-                      <span className="text-xs font-black text-white">{formatIDR(chartPengeluaran.total)}</span>
-                    </div>
-                  </div>
-
-                  <div className="space-y-3 border-t border-zinc-800/60 pt-4">
-                    {chartPengeluaran.slices.map((slice) => (
-                      <div key={slice.id} className="space-y-1">
-                        <div className="flex justify-between items-center text-[10px]">
-                          <span className="text-zinc-300 font-semibold">{slice.nama}</span>
-                          <span className="text-zinc-400 font-bold">{formatIDR(slice.jumlah)} ({slice.persen.toFixed(0)}%)</span>
-                        </div>
-                        <div className="w-full h-1 bg-zinc-900 rounded-full overflow-hidden">
-                          <div 
-                            className="h-full rounded-full transition-all duration-500" 
-                            style={{ width: `${slice.persen}%`, backgroundColor: slice.warna }}
-                          ></div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </div>
-          </div>
-        )}
-
-        {/* TAB 3: SETELAN & KONEKSI CLOUD */}
-        {tabAktif === 'utilitas' && (
-          <div className="space-y-6 animate-in fade-in duration-200">
-            
-            <div className="bg-gradient-to-b from-[#18181b] to-[#0f0f11] rounded-[28px] p-6 border border-zinc-800/80">
-              <span className="text-[8px] bg-purple-950/60 text-purple-300 border border-purple-800/60 px-2.5 py-1 rounded-full font-bold uppercase tracking-wider">
-                ID Vault Aktif
-              </span>
-              <div className="flex gap-2 mt-3.5">
-                <input
-                  type="text"
-                  readOnly
-                  value={customUserId || user?.uid || ''}
-                  className="flex-1 bg-zinc-950 text-zinc-300 border border-zinc-800 rounded-xl px-3 py-2 text-[10px] focus:outline-none font-mono"
-                />
-                <button
-                  onClick={salinUID}
-                  className="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-xl text-[10px] font-bold active:scale-95 transition-all"
-                >
-                  Salin
-                </button>
-              </div>
-              <p className="text-[10px] text-zinc-500 leading-relaxed mt-2.5">
-                Salin ID di atas dari komputer Anda, lalu kirim ke iPhone Anda. Atau masukkan ID iPhone Anda ke komputer Anda agar data langsung menyatu secara real-time.
-              </p>
-            </div>
-
-            <div className="bg-[#141417]/80 border border-zinc-800/60 rounded-[28px] p-6 space-y-4">
-              <div>
-                <h3 className="text-xs font-black uppercase tracking-widest text-zinc-100">Sambungkan Perangkat</h3>
-                <p className="text-[10px] text-zinc-500 mt-1 leading-relaxed">
-                  Tempelkan atau ketikkan ID Vault dari komputer/iPhone Anda yang lain untuk menyelaraskan data keuangan Anda secara instan.
-                </p>
-              </div>
-
-              <form onSubmit={hubungkanKoneksiBaru} className="space-y-3">
-                <input
-                  type="text"
-                  required
-                  placeholder="Tempelkan ID Vault di sini..."
-                  value={targetSyncId}
-                  onChange={(e) => setTargetSyncId(e.target.value)}
-                  className="w-full bg-[#09090b] border border-zinc-800 text-zinc-200 text-xs rounded-xl px-3 py-3 focus:outline-none focus:border-purple-600 font-mono"
-                />
-
-                <div className="flex gap-2">
-                  <button
-                    type="submit"
-                    className="flex-1 bg-purple-600 hover:bg-purple-700 text-white py-2.5 rounded-xl text-[10px] font-bold uppercase tracking-wider transition-all"
-                  >
-                    Mulai Sinkronisasi
-                  </button>
-                  {customUserId !== user?.uid && (
-                    <button
-                      type="button"
-                      onClick={setelUlangKoneksi}
-                      className="bg-zinc-800 hover:bg-zinc-700 text-zinc-300 px-4 py-2.5 rounded-xl text-[10px] font-bold uppercase tracking-wider"
-                    >
-                      Batal Sync
-                    </button>
-                  )}
-                </div>
-              </form>
-            </div>
-
-            <div className="bg-[#121215]/40 border border-zinc-800/40 rounded-2xl p-5 space-y-3 text-xs leading-relaxed">
-              <h4 className="font-bold text-zinc-200">Panduan Sinkronisasi Cepat:</h4>
-              <ol className="list-decimal pl-4 space-y-1.5 text-zinc-400 text-[11px]">
-                <li>Buka aplikasi di browser laptop atau perangkat kedua Anda.</li>
-                <li>Salin kode ID unik yang tertera di menu <strong className="text-purple-400">Settings</strong>-nya.</li>
-                <li>Tempelkan kode tersebut di kolom di atas pada iPhone Anda, lalu klik <strong className="text-white">Mulai Sinkronisasi</strong>.</li>
-              </ol>
-            </div>
-
-          </div>
-        )}
-
-      </main>
-
-      {/* --- FLOATING TRIGGER TAMBAH --- */}
-      {tabAktif === 'beranda' && (
-        <button
-          onClick={() => setShowModalTambah(true)}
-          className="fixed bottom-24 right-6 z-40 w-12 h-12 bg-purple-600 hover:bg-purple-500 text-white rounded-full flex items-center justify-center shadow-lg shadow-purple-900/40 hover:scale-105 active:scale-95 transition-all"
-        >
-          <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M12 4v16m8-8H4" />
-          </svg>
-        </button>
-      )}
-
-      {/* --- NAVIGATION BAWAH (PREMIUM & ULTRA-MINIMALIST) --- */}
-      <nav className="fixed bottom-6 left-1/2 -translate-x-1/2 z-40 bg-[#121215]/90 backdrop-blur-md border border-zinc-800/80 rounded-2xl py-3 px-6 shadow-2xl flex gap-12">
-        
-        {/* Nav: Beranda */}
-        <button 
-          onClick={() => setTabAktif('beranda')}
-          className={`flex flex-col items-center gap-1 focus:outline-none transition-all ${
-            tabAktif === 'beranda' ? 'text-purple-400 scale-105' : 'text-zinc-500 hover:text-zinc-450'
-          }`}
-        >
-          <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
-          </svg>
-          <span className="text-[8px] font-bold tracking-widest uppercase">Vault</span>
-        </button>
-
-        {/* Nav: Statistik */}
-        <button 
-          onClick={() => setTabAktif('statistik')}
-          className={`flex flex-col items-center gap-1 focus:outline-none transition-all ${
-            tabAktif === 'statistik' ? 'text-purple-400 scale-105' : 'text-zinc-500 hover:text-zinc-455'
-          }`}
-        >
-          <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 3.055A9.003 9.003 0 1020.945 13H11V3.055z" />
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20.488 9H15V3.512A9.025 9.025 0 0120.488 9z" />
-          </svg>
-          <span className="text-[8px] font-bold tracking-widest uppercase">Charts</span>
-        </button>
-
-        {/* Nav: Utilitas */}
-        <button 
-          onClick={() => setTabAktif('utilitas')}
-          className={`flex flex-col items-center gap-1 focus:outline-none transition-all ${
-            tabAktif === 'utilitas' ? 'text-purple-400 scale-105' : 'text-zinc-500 hover:text-zinc-455'
-          }`}
-        >
-          <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4" />
-          </svg>
-          <span className="text-[8px] font-bold tracking-widest uppercase">Settings</span>
-        </button>
-
-      </nav>
-
-      {/* --- FORM MODAL TAMBAH DATA --- */}
-      {showModalTambah && (
-        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4 bg-black/85 backdrop-blur-xs animate-in fade-in duration-200">
-          <div className="bg-[#0f0f12] border border-zinc-800 rounded-t-[32px] sm:rounded-[32px] w-full max-w-sm overflow-hidden shadow-2xl animate-in slide-in-from-bottom duration-200">
-            
-            <div className="p-5 border-b border-zinc-800 flex justify-between items-center bg-zinc-950/40">
-              <div>
-                <h3 className="text-xs font-black uppercase tracking-widest text-zinc-100">Catat Dana</h3>
-                <p className="text-[9px] text-zinc-500 font-medium">Real-time sinkronisasi cloud</p>
-              </div>
-              <button 
-                onClick={() => setShowModalTambah(false)}
-                className="w-8 h-8 rounded-full bg-zinc-900 border border-zinc-800 flex items-center justify-center text-zinc-400"
-              >
-                ✕
-              </button>
-            </div>
-
-            <form onSubmit={simpanTransaksi} className="p-5 space-y-4">
-              <div className="grid grid-cols-2 gap-1.5 bg-zinc-950 p-1.5 rounded-2xl border border-zinc-800/50">
-                <button
-                  type="button"
-                  onClick={() => setTipeForm('pengeluaran')}
-                  className={`py-2 text-[10px] font-bold rounded-xl transition-all ${
-                    tipeForm === 'pengeluaran' ? 'bg-rose-600 text-white' : 'text-zinc-500 hover:text-zinc-300'
-                  }`}
-                >
-                  Arus Keluar
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setTipeForm('pemasukan')}
-                  className={`py-2 text-[10px] font-bold rounded-xl transition-all ${
-                    tipeForm === 'pemasukan' ? 'bg-emerald-600 text-white' : 'text-zinc-500 hover:text-zinc-300'
-                  }`}
-                >
-                  Arus Masuk
-                </button>
-              </div>
-
-              <div>
-                <label className="block text-[8px] font-bold text-zinc-500 tracking-widest uppercase mb-1">Nominal Transaksi</label>
-                <div className="relative">
-                  <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-zinc-400 font-extrabold text-xs">Rp</span>
-                  <input
-                    type="number"
-                    required
-                    min="1"
-                    placeholder="0"
-                    value={jumlah}
-                    onChange={(e) => setJumlah(e.target.value)}
-                    className="w-full bg-[#141417] border border-zinc-800 rounded-xl pl-9 pr-4 py-2.5 text-xs text-white font-extrabold focus:outline-none focus:border-purple-600 transition-colors"
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-[8px] font-bold text-zinc-500 tracking-widest uppercase mb-1">Alokasi Kategori</label>
-                <select
-                  value={kategori}
-                  onChange={(e) => setKategori(e.target.value)}
-                  className="w-full bg-[#141417] border border-zinc-800 text-zinc-300 text-xs rounded-xl px-3 py-2.5 focus:outline-none focus:border-purple-600"
-                >
-                  {tipeForm === 'pengeluaran' ? (
-                    KATEGORI_PENGELUARAN.map(k => (
-                      <option key={k.id} value={k.id} className="bg-zinc-950 text-white">{k.nama}</option>
-                    ))
-                  ) : (
-                    KATEGORI_PEMASUKAN.map(k => (
-                      <option key={k.id} value={k.id} className="bg-zinc-950 text-white">{k.nama}</option>
-                    ))
-                  )}
-                </select>
-              </div>
-
-              <div className="grid grid-cols-2 gap-2">
-                <div>
-                  <label className="block text-[8px] font-bold text-zinc-500 tracking-widest uppercase mb-1">Tanggal</label>
-                  <input
-                    type="date"
-                    required
-                    value={tanggal}
-                    onChange={(e) => setTanggal(e.target.value)}
-                    className="w-full bg-[#141417] border border-zinc-800 text-zinc-300 rounded-xl px-2.5 py-2 text-xs focus:outline-none"
-                  />
-                </div>
-                <div>
-                  <label className="block text-[8px] font-bold text-zinc-500 tracking-widest uppercase mb-1">Jam</label>
-                  <input
-                    type="time"
-                    required
-                    value={waktu}
-                    onChange={(e) => setWaktu(e.target.value)}
-                    className="w-full bg-[#141417] border border-zinc-800 text-zinc-300 rounded-xl px-2.5 py-2 text-xs focus:outline-none"
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-[8px] font-bold text-zinc-500 tracking-widest uppercase mb-1">Deskripsi Tambahan</label>
-                <input
-                  type="text"
-                  maxLength="40"
-                  placeholder="Deskripsi singkat..."
-                  value={keterangan}
-                  onChange={(e) => setKeterangan(e.target.value)}
-                  className="w-full bg-[#141417] border border-zinc-800 rounded-xl px-3 py-2.5 text-xs text-zinc-200 focus:outline-none focus:border-purple-600 transition-colors"
-                />
-              </div>
-
-              <div className="pt-2 flex gap-2">
-                <button
-                  type="button"
-                  onClick={() => setShowModalTambah(false)}
-                  className="flex-1 bg-zinc-900 hover:bg-zinc-850 text-zinc-400 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-wider transition-colors"
-                >
-                  Batal
-                </button>
-                <button
-                  type="submit"
-                  className={`flex-1 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-wider text-white transition-colors ${
-                    tipeForm === 'pengeluaran' ? 'bg-rose-600 hover:bg-rose-500' : 'bg-emerald-600 hover:bg-emerald-500'
-                  }`}
-                >
-                  Konfirmasi
-                </button>
-              </div>
-
-            </form>
-          </div>
+      <!-- DAFTAR TRANSAKSI -->
+      <div class="space-y-3">
+        <span class="text-[10px] text-zinc-500 font-bold uppercase tracking-wider block">Arus Transaksi Terkini</span>
+        <div id="container-transaksi" class="space-y-2.5">
+          <!-- Item transaksi dimuat secara dinamis via JS -->
         </div>
-      )}
-
-      {/* --- CONFIRMATION MODAL --- */}
-      {konfirmasiHapus && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-xs animate-in fade-in zoom-in-95 duration-150">
-          <div className="bg-[#0f0f12] border border-zinc-800 rounded-3xl w-full max-w-xs p-5 space-y-4 shadow-2xl">
-            <div className="text-center">
-              <span className="text-2xl block mb-2">⚠️</span>
-              <h4 className="font-bold text-sm text-zinc-200">Konfirmasi Hapus</h4>
-              <p className="text-[10px] text-zinc-500 leading-relaxed mt-1">Apakah Anda yakin ingin menghapus catatan transaksi ini secara permanen dari Cloud?</p>
-            </div>
-            
-            <div className="flex gap-2">
-              <button
-                onClick={() => setKonfirmasiHapus(null)}
-                className="flex-1 bg-zinc-900 text-zinc-400 py-2 rounded-xl text-[10px] font-black uppercase tracking-wider hover:bg-zinc-850"
-              >
-                Batal
-              </button>
-              <button
-                onClick={eksekusiHapus}
-                className="flex-1 bg-rose-600 text-white py-2 rounded-xl text-[10px] font-black uppercase tracking-wider hover:bg-rose-500"
-              >
-                Hapus
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
+      </div>
     </div>
-  );
-}
+
+    <!-- TAB-CONTAINER: STATISTIK (CHARTS) -->
+    <div id="tab-statistik" class="space-y-6 hidden">
+      <div class="bg-gradient-to-b from-[#18181b] to-[#0f0f11] rounded-[28px] p-6 border border-zinc-800/80 shadow-xl">
+        <h3 class="text-xs text-zinc-400 font-bold tracking-widest uppercase mb-6">Porsi Distribusi Dana</h3>
+        
+        <div id="chart-kosong" class="py-12 text-center text-zinc-500 text-xs hidden">
+          Belum ada grafik pengeluaran tersedia untuk bulan ini.
+        </div>
+
+        <div id="chart-aktif" class="space-y-6">
+          <div class="flex justify-center relative py-2">
+            <svg width="150" height="150" viewBox="0 0 120 120" class="transform -rotate-90" id="svg-donut">
+              <!-- Arc lingkaran diisi dinamis -->
+            </svg>
+            <div class="absolute inset-0 flex flex-col items-center justify-center">
+              <span class="text-[8px] text-zinc-500 uppercase font-black">Keluar</span>
+              <span id="chart-total-text" class="text-xs font-black text-white">Rp0</span>
+            </div>
+          </div>
+
+          <div id="chart-legenda" class="space-y-3 border-t border-zinc-800/60 pt-4">
+            <!-- Legenda Kategori -->
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- TAB-CONTAINER: UTILLITAS (SETTINGS) -->
+    <div id="tab-utilitas" class="space-y-6 hidden">
+      <div class="bg-gradient-to-b from-[#18181b] to-[#0f0f11] rounded-[28px] p-6 border border-zinc-800/80">
+        <span class="text-[8px] bg-purple-950/60 text-purple-300 border border-purple-800/60 px-2.5 py-1 rounded-full font-bold uppercase tracking-wider">
+          ID Vault Aktif Anda
+        </span>
+        <div class="flex gap-2 mt-3.5">
+          <input
+            type="text"
+            id="uid-aktif"
+            readonly
+            class="flex-1 bg-zinc-950 text-zinc-300 border border-zinc-800 rounded-xl px-3 py-2 text-[10px] font-mono focus:outline-none"
+          />
+          <button
+            onclick="salinID()"
+            class="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-xl text-[10px] font-bold active:scale-95 transition-all"
+          >
+            Salin
+          </button>
+        </div>
+        <p class="text-[10px] text-zinc-500 leading-relaxed mt-2.5">
+          Salin ID di atas dari komputer Anda, lalu kirim ke iPhone Anda. Atau masukkan ID iPhone Anda ke komputer Anda agar data langsung menyatu secara real-time.
+        </p>
+      </div>
+
+      <div class="bg-[#141417]/80 border border-zinc-800/60 rounded-[28px] p-6 space-y-4">
+        <div>
+          <h3 class="text-xs font-black uppercase tracking-widest text-zinc-100">Sambungkan Perangkat</h3>
+          <p class="text-[10px] text-zinc-500 mt-1 leading-relaxed">
+            Tempelkan ID Vault dari komputer/iPhone Anda yang lain untuk menyelaraskan data keuangan Anda secara instan.
+          </p>
+        </div>
+
+        <form onsubmit="hubungkanKoneksi(event)" class="space-y-3">
+          <input
+            type="text"
+            id="target-id-input"
+            required
+            placeholder="Tempelkan ID Vault di sini..."
+            class="w-full bg-[#09090b] border border-zinc-800 text-zinc-200 text-xs rounded-xl px-3 py-3 font-mono focus:border-purple-600 focus:outline-none"
+          />
+
+          <div class="flex gap-2">
+            <button
+              type="submit"
+              class="flex-1 bg-purple-600 hover:bg-purple-700 text-white py-2.5 rounded-xl text-[10px] font-bold uppercase tracking-wider transition-all"
+            >
+              Mulai Sinkronisasi
+            </button>
+            <button
+              type="button"
+              id="btn-batal-sync"
+              onclick="setelUlangKoneksi()"
+              class="bg-zinc-800 hover:bg-zinc-700 text-zinc-300 px-4 py-2.5 rounded-xl text-[10px] font-bold uppercase tracking-wider hidden"
+            >
+              Reset
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- FLOATING TRIGGER TAMBAH -->
+  <button
+    id="btn-add-floating"
+    onclick="bukaModal()"
+    class="fixed bottom-24 right-6 z-40 w-12 h-12 bg-purple-600 hover:bg-purple-500 text-white rounded-full flex items-center justify-center shadow-lg shadow-purple-900/40 hover:scale-105 active:scale-95 transition-all"
+  >
+    <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3">
+      <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4" />
+    </svg>
+  </button>
+
+  <!-- NAVIGATION BAWAH -->
+  <nav class="fixed bottom-6 left-1/2 -translate-x-1/2 z-40 bg-[#121215]/90 backdrop-blur-md border border-zinc-800/80 rounded-2xl py-3 px-6 shadow-2xl flex gap-12">
+    <!-- Nav Beranda -->
+    <button onclick="gantiTab('beranda')" id="nav-beranda" class="flex flex-col items-center gap-1 text-purple-400 scale-105">
+      <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
+      </svg>
+      <span class="text-[8px] font-bold tracking-widest uppercase">Vault</span>
+    </button>
+    <!-- Nav Charts -->
+    <button onclick="gantiTab('statistik')" id="nav-statistik" class="flex flex-col items-center gap-1 text-zinc-500 hover:text-zinc-400">
+      <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M11 3.055A9.003 9.003 0 1020.945 13H11V3.055z" />
+        <path stroke-linecap="round" stroke-linejoin="round" d="M20.488 9H15V3.512A9.025 9.025 0 0120.488 9z" />
+      </svg>
+      <span class="text-[8px] font-bold tracking-widest uppercase">Charts</span>
+    </button>
+    <!-- Nav Settings -->
+    <button onclick="gantiTab('utilitas')" id="nav-utilitas" class="flex flex-col items-center gap-1 text-zinc-500 hover:text-zinc-400">
+      <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4" />
+      </svg>
+      <span class="text-[8px] font-bold tracking-widest uppercase">Settings</span>
+    </button>
+  </nav>
+
+  <!-- FORM MODAL TAMBAH DATA -->
+  <div id="modal-tambah" class="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4 bg-black/85 backdrop-blur-xs hidden">
+    <div class="bg-[#0f0f12] border border-zinc-800 rounded-t-[32px] sm:rounded-[32px] w-full max-w-sm overflow-hidden shadow-2xl">
+      <div class="p-5 border-b border-zinc-800 flex justify-between items-center bg-zinc-950/40">
+        <div>
+          <h3 class="text-xs font-black uppercase tracking-widest text-zinc-100">Catat Dana</h3>
+          <p class="text-[9px] text-zinc-500 font-medium">Real-time sinkronisasi cloud</p>
+        </div>
+        <button onclick="tutupModal()" class="w-8 h-8 rounded-full bg-zinc-900 border border-zinc-800 flex items-center justify-center text-zinc-400">✕</button>
+      </div>
+
+      <form onsubmit="kirimTransaksi(event)" class="p-5 space-y-4">
+        <!-- Switcher -->
+        <div class="grid grid-cols-2 gap-1.5 bg-zinc-950 p-1.5 rounded-2xl border border-zinc-800/50">
+          <button type="button" id="btn-tipe-keluar" onclick="gantiTipeForm('pengeluaran')" class="py-2 text-[10px] font-bold rounded-xl transition-all bg-rose-600 text-white">Arus Keluar</button>
+          <button type="button" id="btn-tipe-masuk" onclick="gantiTipeForm('pemasukan')" class="py-2 text-[10px] font-bold rounded-xl transition-all text-zinc-500 hover:text-zinc-300">Arus Masuk</button>
+        </div>
+
+        <!-- Nominal -->
+        <div>
+          <label class="block text-[8px] font-bold text-zinc-500 tracking-widest uppercase mb-1">Nominal Transaksi</label>
+          <div class="relative">
+            <span class="absolute left-3.5 top-1/2 -translate-y-1/2 text-zinc-400 font-extrabold text-xs">Rp</span>
+            <input type="number" id="form-jumlah" required min="1" placeholder="0" class="w-full bg-[#141417] border border-zinc-800 rounded-xl pl-9 pr-4 py-2.5 text-xs text-white font-extrabold" />
+          </div>
+        </div>
+
+        <!-- Kategori -->
+        <div>
+          <label class="block text-[8px] font-bold text-zinc-500 tracking-widest uppercase mb-1">Alokasi Kategori</label>
+          <select id="form-kategori" class="w-full bg-[#141417] border border-zinc-800 text-zinc-300 text-xs rounded-xl px-3 py-2.5 focus:border-purple-600">
+            <!-- Diisi dinamis via JS -->
+          </select>
+        </div>
+
+        <!-- Waktu -->
+        <div class="grid grid-cols-2 gap-2">
+          <div>
+            <label class="block text-[8px] font-bold text-zinc-500 tracking-widest uppercase mb-1">Tanggal</label>
+            <input type="date" id="form-tanggal" required class="w-full bg-[#141417] border border-zinc-800 text-zinc-300 rounded-xl px-2.5 py-2 text-xs" />
+          </div>
+          <div>
+            <label class="block text-[8px] font-bold text-zinc-500 tracking-widest uppercase mb-1">Jam</label>
+            <input type="time" id="form-waktu" required class="w-full bg-[#141417] border border-zinc-800 text-zinc-300 rounded-xl px-2.5 py-2 text-xs" />
+          </div>
+        </div>
+
+        <!-- Keterangan -->
+        <div>
+          <label class="block text-[8px] font-bold text-zinc-500 tracking-widest uppercase mb-1">Deskripsi Tambahan</label>
+          <input type="text" id="form-keterangan" placeholder="Keterangan singkat..." class="w-full bg-[#141417] border border-zinc-800 rounded-xl px-3 py-2.5 text-xs text-zinc-200" />
+        </div>
+
+        <div class="pt-2 flex gap-2">
+          <button type="button" onclick="tutupModal()" class="flex-1 bg-zinc-900 text-zinc-400 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-wider">Batal</button>
+          <button type="submit" class="flex-1 bg-rose-600 text-white py-2.5 rounded-xl text-[10px] font-black uppercase tracking-wider">Konfirmasi</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- CONFIRMATION DELETE MODAL -->
+  <div id="modal-delete" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-xs hidden">
+    <div class="bg-[#0f0f12] border border-zinc-800 rounded-3xl w-full max-w-xs p-5 space-y-4 shadow-2xl">
+      <div class="text-center">
+        <span class="text-2xl block mb-2">⚠️</span>
+        <h4 class="font-bold text-sm text-zinc-200">Konfirmasi Hapus</h4>
+        <p class="text-[10px] text-zinc-500 leading-relaxed mt-1">Apakah Anda benar-benar yakin ingin menghapus catatan transaksi ini secara permanen dari Cloud?</p>
+      </div>
+      <div class="flex gap-2">
+        <button onclick="batalHapus()" class="flex-1 bg-zinc-900 text-zinc-400 py-2 rounded-xl text-[10px] font-black uppercase tracking-wider">Batal</button>
+        <button onclick="prosesHapus()" class="flex-1 bg-rose-600 text-white py-2 rounded-xl text-[10px] font-black uppercase tracking-wider">Hapus</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- JAVASCRIPT & DATABASE ENGINE -->
+  <script>
+    // Config Firebase Global (Disediakan otomatis dari platform)
+    const firebaseConfig = JSON.parse(__firebase_config);
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.compat.firestore();
+    const auth = firebase.compat.auth();
+    const appId = typeof __app_id !== 'undefined' ? __app_id : 'keuangan-premium-cyber';
+
+    // State Aplikasi
+    let user = null;
+    let customUserId = localStorage.getItem('keuangan_custom_uid') || '';
+    let transaksi = [];
+    let activeTab = 'beranda';
+    let filterTipe = 'Semua';
+    let filterBulan = new Date().toISOString().substring(0, 7);
+    let formTipe = 'pengeluaran';
+    let deleteTargetId = null;
+
+    // Kategori
+    const KATEGORI_PENGELUARAN = [
+      { id: 'makanan', nama: 'Kuliner & Dining', warna: '#F87171', path: "M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" },
+      { id: 'transportasi', nama: 'Mobilitas & Travel', warna: '#60A5FA', path: "M5 10l7-7m0 0l7 7m-7-7v18" },
+      { id: 'belanja', nama: 'Gaya Hidup & Belanja', warna: '#FBBF24', path: "M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" },
+      { id: 'tagihan', nama: 'Utilitas & Layanan', warna: '#34D399', path: "M13 2L3 14h9l-1 8 10-12h-9l1-8z" },
+      { id: 'hiburan', nama: 'Rekreasi & Media', warna: '#A78BFA', path: "M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" },
+      { id: 'kesehatan', nama: 'Kesehatan & Wellness', warna: '#F472B6', path: "M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" },
+      { id: 'lainnya_out', nama: 'Lain-lain', warna: '#9CA3AF', path: "M20 7l-8-4-8 4" }
+    ];
+
+    const KATEGORI_PEMASUKAN = [
+      { id: 'gaji', nama: 'Gaji Pokok', warna: '#34D399', path: "M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2" },
+      { id: 'investasi', nama: 'Investasi', warna: '#10B981', path: "M13 7h8m0 0v8" },
+      { id: 'bisnis', nama: 'Pendapatan Bisnis', warna: '#C084FC', path: "M21 13.255A23.931 23.931 0 0112 15" },
+      { id: 'projek', nama: 'Projek & Freelance', warna: '#60A5FA', path: "M10 20l4-16" }
+    ];
+
+    // --- INISIALISASI ---
+    window.onload = function() {
+      // Form setup default
+      document.getElementById('form-tanggal').value = new Date().toISOString().split('T')[0];
+      document.getElementById('form-waktu').value = new Date().toTimeString().substring(0, 5);
+      renderSelectKategori();
+
+      // Firebase Auth
+      auth.signInAnonymously().then(cred => {
+        user = cred.user;
+        if (!customUserId) {
+          customUserId = user.uid;
+        }
+        document.getElementById('uid-aktif').value = customUserId;
+        document.getElementById('target-id-input').value = customUserId;
+        initFirestoreSync();
+      }).catch(err => {
+        console.error(err);
+        tampilkanToast("Koneksi cloud gagal.", "error");
+      });
+    }
+
+    // --- FIRESTORE REALTIME ENGINE ---
+    let unsubscribeFirestore = null;
+    function initFirestoreSync() {
+      if (unsubscribeFirestore) unsubscribeFirestore();
+
+      const activeId = customUserId || user.uid;
+      
+      // Update UI setelan
+      if (customUserId && customUserId !== user.uid) {
+        document.getElementById('btn-batal-sync').classList.remove('hidden');
+      } else {
+        document.getElementById('btn-batal-sync').classList.add('hidden');
+      }
+
+      document.getElementById('sync-dot').className = "w-1.5 h-1.5 rounded-full bg-amber-500 animate-spin";
+      document.getElementById('sync-status').innerText = "Menghubungkan";
+
+      const colRef = db.collection('artifacts').doc(appId).collection('users').doc(activeId).collection('transaksi');
+      
+      unsubscribeFirestore = colRef.onSnapshot(snapshot => {
+        transaksi = [];
+        snapshot.forEach(doc => {
+          transaksi.push({ id: doc.id, ...doc.data() });
+        });
+
+        // Urutkan
+        transaksi.sort((a,b) => {
+          return new Date(`${b.tanggal}T${b.waktu || '00:00'}`) - new Date(`${a.tanggal}T${a.waktu || '00:00'}`);
+        });
+
+        // Update UI
+        document.getElementById('sync-dot').className = "w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse";
+        document.getElementById('sync-status').innerText = "Aktif";
+        
+        perbaruiBulanOpsi();
+        prosesKalkulasiUI();
+      }, err => {
+        console.error(err);
+        tampilkanToast("Sinkronisasi gagal", "error");
+      });
+    }
+
+    // --- ALUR DATA & PROSES UI ---
+    function prosesKalkulasiUI() {
+      let totalSaldo = 0;
+      let totalMasukBulanIni = 0;
+      let totalKeluarBulanIni = 0;
+
+      // Filter Data
+      const keyword = document.getElementById('input-cari').value.toLowerCase();
+      const listTransaksiDifilter = transaksi.filter(t => {
+        const cocokBulan = t.tanggal && t.tanggal.startsWith(filterBulan);
+        
+        let cocokTipe = true;
+        if (filterTipe === 'Pemasukan') cocokTipe = (t.tipe === 'pemasukan');
+        if (filterTipe === 'Pengeluaran') cocokTipe = (t.tipe === 'pengeluaran');
+
+        let cocokKeyword = true;
+        if (keyword) {
+          const info = dapatkanInfoKategori(t.kategori, t.tipe);
+          cocokKeyword = t.keterangan.toLowerCase().includes(keyword) || info.nama.toLowerCase().includes(keyword);
+        }
+
+        return cocokBulan && cocokTipe && cocokKeyword;
+      });
+
+      // Kalkulasi global
+      transaksi.forEach(t => {
+        if (t.tipe === 'pemasukan') totalSaldo += t.jumlah;
+        else totalSaldo -= t.jumlah;
+      });
+
+      // Kalkulasi bulanan terfilter
+      listTransaksiDifilter.forEach(t => {
+        if (t.tipe === 'pemasukan') totalMasukBulanIni += t.jumlah;
+        else totalKeluarBulanIni += t.jumlah;
+      });
+
+      // Update Card Atas
+      document.getElementById('total-saldo').innerText = formatUang(totalSaldo);
+      document.getElementById('saldo-masuk').innerText = formatUang(totalMasukBulanIni);
+      document.getElementById('saldo-keluar').innerText = formatUang(totalKeluarBulanIni);
+
+      // Render Transaksi List
+      renderDaftarTransaksi(listTransaksiDifilter);
+
+      // Render Charts
+      prosesRenderCharts(listTransaksiDifilter);
+    }
+
+    function renderDaftarTransaksi(items) {
+      const container = document.getElementById('container-transaksi');
+      container.innerHTML = '';
+
+      if (items.length === 0) {
+        container.innerHTML = `
+          <div class="bg-[#141417]/30 border border-dashed border-zinc-800/60 rounded-[24px] py-16 text-center text-zinc-500 text-xs">
+            Tidak ada catatan transaksi ditemukan.
+          </div>
+        `;
+        return;
+      }
+
+      items.forEach(item => {
+        const info = dapatkanInfoKategori(item.kategori, item.tipe);
+        const isOut = item.tipe === 'pengeluaran';
+        
+        const el = document.createElement('div');
+        el.className = "bg-[#141417]/80 hover:bg-[#1a1a20] border border-zinc-800/40 hover:border-zinc-800 rounded-2xl p-4 flex items-center justify-between transition-all duration-200 group";
+        el.innerHTML = `
+          <div class="flex items-center gap-3.5 min-w-0">
+            <div class="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 border" style="background-color: ${info.warna}10; border-color: ${info.warna}30; color: ${info.warna};">
+              <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="${info.path || 'M12 2v20'}" />
+              </svg>
+            </div>
+            <div class="min-w-0">
+              <h4 class="font-bold text-zinc-100 text-xs truncate tracking-wide">${item.keterangan}</h4>
+              <div class="flex items-center gap-2 mt-1">
+                <span class="text-[9px] bg-zinc-800 text-zinc-400 px-1.5 py-0.5 rounded-md font-medium">${info.nama}</span>
+                <span class="text-[9px] text-zinc-500 font-semibold uppercase tracking-wider">${formatTanggalLengkap(item.tanggal)}</span>
+              </div>
+            </div>
+          </div>
+          <div class="flex items-center gap-3 flex-shrink-0">
+            <span class="font-extrabold text-xs tracking-tight ${isOut ? 'text-rose-400' : 'text-emerald-400'}">
+              ${isOut ? '-' : '+'} ${formatUang(item.jumlah)}
+            </span>
+            <button onclick="pemicuHapus('${item.id}')" class="p-1.5 rounded-lg bg-zinc-900/50 text-zinc-600 hover:text-rose-400 hover:bg-rose-950/20 opacity-0 group-hover:opacity-100 transition-opacity">
+              <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+              </svg>
+            </button>
+          </div>
+        `;
+        container.appendChild(el);
+      });
+    }
+
+    // --- RENDER GRAFIK DONUT ---
+    function prosesRenderCharts(items) {
+      const mapKat = {};
+      let totalKeluar = 0;
+
+      KATEGORI_PENGELUARAN.forEach(k => {
+        mapKat[k.id] = { ...k, jumlah: 0 };
+      });
+
+      items.forEach(t => {
+        if (t.tipe === 'pengeluaran') {
+          totalKeluar += t.jumlah;
+          if (mapKat[t.kategori]) {
+            mapKat[t.kategori].jumlah += t.jumlah;
+          } else {
+            if (!mapKat['lainnya_out']) {
+              mapKat['lainnya_out'] = { id: 'lainnya_out', nama: 'Lain-lain', warna: '#9CA3AF', path: "M20 7l-8-4-8 4", jumlah: 0 };
+            }
+            mapKat['lainnya_out'].jumlah += t.jumlah;
+          }
+        }
+      });
+
+      const listTerpakai = Object.values(mapKat).filter(k => k.jumlah > 0).sort((a,b) => b.jumlah - a.jumlah);
+
+      if (listTerpakai.length === 0) {
+        document.getElementById('chart-kosong').classList.remove('hidden');
+        document.getElementById('chart-aktif').classList.add('hidden');
+        return;
+      }
+
+      document.getElementById('chart-kosong').classList.add('hidden');
+      document.getElementById('chart-aktif').classList.remove('hidden');
+      document.getElementById('chart-total-text').innerText = formatUang(totalKeluar);
+
+      // Render SVG Donut
+      const svg = document.getElementById('svg-donut');
+      svg.innerHTML = '<circle cx="60" cy="60" r="50" fill="#09090b" />';
+
+      let accumulatedAngle = 0;
+      const legendaContainer = document.getElementById('chart-legenda');
+      legendaContainer.innerHTML = '';
+
+      listTerpakai.forEach((slice, idx) => {
+        const persen = (slice.jumlah / totalKeluar) * 100;
+        const angle = (persen / 100) * 360;
+        const start = accumulatedAngle;
+        accumulatedAngle += angle;
+
+        // Path SVG
+        if (persen >= 99.9) {
+          svg.innerHTML += `<circle cx="60" cy="60" r="44" fill="none" stroke="${slice.warna}" stroke-width="12" />`;
+        } else {
+          const d = describeArc(60, 60, 44, start, accumulatedAngle);
+          svg.innerHTML += `<path d="${d}" fill="none" stroke="${slice.warna}" stroke-width="12" />`;
+        }
+
+        // List Legenda
+        const row = document.createElement('div');
+        row.className = "space-y-1";
+        row.innerHTML = `
+          <div class="flex justify-between items-center text-[10px]">
+            <span class="text-zinc-300 font-semibold">${slice.nama}</span>
+            <span class="text-zinc-400 font-bold">${formatUang(slice.jumlah)} (${persen.toFixed(0)}%)</span>
+          </div>
+          <div class="w-full h-1 bg-zinc-900 rounded-full overflow-hidden">
+            <div class="h-full rounded-full" style="width: ${persen}%; background-color: ${slice.warna}"></div>
+          </div>
+        `;
+        legendaContainer.appendChild(row);
+      });
+
+      svg.innerHTML += '<circle cx="60" cy="60" r="32" fill="#0f0f11" />';
+    }
+
+    // --- FORM ACTIONS ---
+    function gantiTipeForm(tipe) {
+      formTipe = tipe;
+      const btnKeluar = document.getElementById('btn-tipe-keluar');
+      const btnMasuk = document.getElementById('btn-tipe-masuk');
+
+      if (tipe === 'pengeluaran') {
+        btnKeluar.className = "py-2 text-[10px] font-bold rounded-xl transition-all bg-rose-600 text-white";
+        btnMasuk.className = "py-2 text-[10px] font-bold rounded-xl transition-all text-zinc-500 hover:text-zinc-300";
+      } else {
+        btnMasuk.className = "py-2 text-[10px] font-bold rounded-xl transition-all bg-emerald-600 text-white";
+        btnKeluar.className = "py-2 text-[10px] font-bold rounded-xl transition-all text-zinc-500 hover:text-zinc-300";
+      }
+
+      renderSelectKategori();
+    }
+
+    function renderSelectKategori() {
+      const select = document.getElementById('form-kategori');
+      select.innerHTML = '';
+      const list = formTipe === 'pengeluaran' ? KATEGORI_PENGELUARAN : KATEGORI_PEMASUKAN;
+      
+      list.forEach(k => {
+        select.innerHTML += `<option value="${k.id}" class="bg-zinc-950 text-white">${k.nama}</option>`;
+      });
+    }
+
+    function kirimTransaksi(e) {
+      e.preventDefault();
+      const valJumlah = document.getElementById('form-jumlah').value;
+      const valKategori = document.getElementById('form-kategori').value;
+      const valTanggal = document.getElementById('form-tanggal').value;
+      const valWaktu = document.getElementById('form-waktu').value;
+      const valKet = document.getElementById('form-keterangan').value;
+
+      const activeUserId = customUserId || user.uid;
+
+      const payload = {
+        tipe: formTipe,
+        jumlah: parseFloat(valJumlah),
+        kategori: valKategori,
+        tanggal: valTanggal,
+        waktu: valWaktu,
+        keterangan: valKet.trim() || 'Transaksi Umum',
+        createdAt: new Date().toISOString()
+      };
+
+      db.collection('artifacts').doc(appId).collection('users').doc(activeUserId).collection('transaksi').add(payload)
+        .then(() => {
+          document.getElementById('form-jumlah').value = '';
+          document.getElementById('form-keterangan').value = '';
+          tutupModal();
+          tampilkanToast("Catatan disimpan ke Cloud!");
+        }).catch(err => {
+          console.error(err);
+          tampilkanToast("Gagal menyimpan data", "error");
+        });
+    }
+
+    // --- SINKRONISASI KONEKSI ---
+    function hubungkanKoneksi(e) {
+      e.preventDefault();
+      const targetId = document.getElementById('target-id-input').value.trim();
+      if (!targetId) {
+        tampilkanToast("Masukkan ID tujuan!", "error");
+        return;
+      }
+
+      localStorage.setItem('keuangan_custom_uid', targetId);
+      customUserId = targetId;
+      document.getElementById('uid-aktif').value = targetId;
+      initFirestoreSync();
+      tampilkanToast("Sinkronisasi cloud tersambung!");
+    }
+
+    function setelUlangKoneksi() {
+      localStorage.removeItem('keuangan_custom_uid');
+      customUserId = user ? user.uid : '';
+      document.getElementById('uid-aktif').value = customUserId;
+      document.getElementById('target-id-input').value = customUserId;
+      initFirestoreSync();
+      tampilkanToast("ID Default dikembalikan.");
+    }
+
+    // --- TAB CONTROLLER ---
+    function gantiTab(tab) {
+      activeTab = tab;
+      
+      document.getElementById('tab-beranda').classList.add('hidden');
+      document.getElementById('tab-statistik').classList.add('hidden');
+      document.getElementById('tab-utilitas').classList.add('hidden');
+      document.getElementById(`tab-${tab}`).classList.remove('hidden');
+
+      // Update Nav Buttons
+      document.getElementById('nav-beranda').className = "flex-1 flex flex-col items-center gap-1.5 py-1.5 text-zinc-500 hover:text-zinc-400";
+      document.getElementById('nav-statistik').className = "flex-1 flex flex-col items-center gap-1.5 py-1.5 text-zinc-500 hover:text-zinc-400";
+      document.getElementById('nav-utilitas').className = "flex-1 flex flex-col items-center gap-1.5 py-1.5 text-zinc-500 hover:text-zinc-400";
+
+      document.getElementById(`nav-${tab}`).className = "flex-1 flex flex-col items-center gap-1.5 py-1.5 text-purple-400 scale-105";
+
+      if (tab === 'beranda') {
+        document.getElementById('btn-add-floating').classList.remove('hidden');
+      } else {
+        document.getElementById('btn-add-floating').classList.add('hidden');
+      }
+    }
+
+    function gantiFilterTipe(tipe) {
+      filterTipe = tipe;
+      document.getElementById('btn-filter-semua').className = "flex-1 py-2 text-xs font-bold rounded-xl text-zinc-500 hover:text-zinc-300";
+      document.getElementById('btn-filter-pemasukan').className = "flex-1 py-2 text-xs font-bold rounded-xl text-zinc-500 hover:text-zinc-300";
+      document.getElementById('btn-filter-pengeluaran').className = "flex-1 py-2 text-xs font-bold rounded-xl text-zinc-500 hover:text-zinc-300";
+
+      const idMap = { 'Semua': 'btn-filter-semua', 'Pemasukan': 'btn-filter-pemasukan', 'Pengeluaran': 'btn-filter-pengeluaran' };
+      document.getElementById(idMap[tipe]).className = "flex-1 py-2 text-xs font-bold rounded-xl bg-zinc-800 text-white shadow-xs";
+
+      prosesKalkulasiUI();
+    }
+
+    function perbaruiBulanOpsi() {
+      const select = document.getElementById('select-bulan');
+      const setBulan = new Set();
+      const blnSekarang = new Date().toISOString().substring(0, 7);
+      setBulan.add(blnSekarang);
+
+      transaksi.forEach(t => {
+        if (t.tanggal) setBulan.add(t.tanggal.substring(0, 7));
+      });
+
+      const sortedBulan = Array.from(setBulan).sort((a,b) => b.localeCompare(a));
+      
+      // Jika pilihan saat ini tidak ada lagi, paksa ke sekarang
+      if (!sortedBulan.includes(filterBulan)) {
+        filterBulan = blnSekarang;
+      }
+
+      select.innerHTML = '';
+      sortedBulan.forEach(b => {
+        select.innerHTML += `<option value="${b}" ${b === filterBulan ? 'selected' : ''}>${b}</option>`;
+      });
+
+      select.onchange = function(e) {
+        filterBulan = e.target.value;
+        prosesKalkulasiUI();
+      }
+    }
+
+    // Input cari listener
+    document.getElementById('input-cari').oninput = function() {
+      prosesKalkulasiUI();
+    };
+
+    // --- MODAL UTILS ---
+    function bukaModal() {
+      document.getElementById('modal-tambah').classList.remove('hidden');
+    }
+    function tutupModal() {
+      document.getElementById('modal-tambah').classList.add('hidden');
+    }
+    function pemicuHapus(id) {
+      deleteTargetId = id;
+      document.getElementById('modal-delete').classList.remove('hidden');
+    }
+    function batalHapus() {
+      deleteTargetId = null;
+      document.getElementById('modal-delete').classList.add('hidden');
+    }
+    function prosesHapus() {
+      if (!deleteTargetId) return;
+      const activeUserId = customUserId || user.uid;
+
+      db.collection('artifacts').doc(appId).collection('users').doc(activeUserId).collection('transaksi').doc(deleteTargetId).delete()
+        .then(() => {
+          batalHapus();
+          tampilkanToast("Catatan dihapus.");
+        }).catch(err => {
+          console.error(err);
+          tampilkanToast("Gagal menghapus", "error");
+        });
+    }
+
+    // --- TOAST NOTIFICATION ---
+    function tampilkanToast(msg, tipe = 'sukses') {
+      const toast = document.getElementById('toast');
+      const text = document.getElementById('toast-text');
+      const indicator = document.getElementById('toast-indicator');
+
+      text.innerText = msg;
+      indicator.className = `w-2 h-2 rounded-full ${tipe === 'error' ? 'bg-rose-500' : 'bg-purple-500'}`;
+      
+      toast.classList.remove('opacity-0', '-translate-y-20', 'pointer-events-none');
+      toast.classList.add('opacity-100', 'translate-y-0');
+
+      setTimeout(() => {
+        toast.classList.remove('opacity-100', 'translate-y-0');
+        toast.classList.add('opacity-0', '-translate-y-20', 'pointer-events-none');
+      }, 2500);
+    }
+
+    // --- HELPER GRAPHICS ---
+    function describeArc(x, y, radius, startAngle, endAngle) {
+      const polarToCartesian = (centerX, centerY, radius, angleInDegrees) => {
+        const angleInRadians = ((angleInDegrees - 90) * Math.PI) / 180.0;
+        return {
+          x: centerX + radius * Math.cos(angleInRadians),
+          y: centerY + radius * Math.sin(angleInRadians)
+        };
+      };
+
+      const start = polarToCartesian(x, y, radius, endAngle);
+      const end = polarToCartesian(x, y, radius, startAngle);
+      const largeArcFlag = endAngle - startAngle <= 180 ? "0" : "1";
+
+      return [
+        "M", x, y,
+        "L", start.x, start.y,
+        "A", radius, radius, 0, largeArcFlag, 0, end.x, end.y,
+        "Z"
+      ].join(" ");
+    }
+
+    function dapatkanInfoKategori(id, tipe) {
+      const list = tipe === 'pemasukan' ? KATEGORI_PEMASUKAN : KATEGORI_PENGELUARAN;
+      return list.find(k => k.id === id) || { nama: 'Lain-lain', warna: '#9CA3AF', path: "M20 7l-8-4-8 4" };
+    }
+
+    function formatUang(nilai) {
+      return new Intl.NumberFormat('id-ID', {
+        style: 'currency',
+        currency: 'IDR',
+        minimumFractionDigits: 0,
+        maximumFractionDigits: 0
+      }).format(nilai).replace(/\s/g, '');
+    }
+
+    function formatTanggalLengkap(tglStr) {
+      if (!tglStr) return '';
+      const dateObj = new Date(tglStr);
+      return dateObj.toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' });
+    }
+
+    function salinID() {
+      salinUID();
+    }
+  </script>
+</body>
+</html>
 
 ```
